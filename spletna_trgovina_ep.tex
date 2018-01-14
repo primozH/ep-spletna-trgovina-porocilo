@@ -135,19 +135,14 @@ Aplikacija podpira (implementira) naslednje dodatne razširitve:
     \end{itemize}
     \item Android:
     \begin{itemize}
-        \item Pregled artiklov spletne prodajalne
-        \item Prikaz podrobnosti posameznega artikla
         \item Osveževanje zaslonov
+        \item Prijava in odjava registriranega uporabnika
+        \item Pregled artiklov s prijavljenim uporabnikom
+        \item Pregled in spreminjanje uporabnikovih podatkov
     \end{itemize}
 \end{enumerate}
 
-Delno so implementirane tudi...
-
-
-
-Navedite, katere razširjene storitve ste implementirali. Če ste katero storitev implementirali le deloma, opišite, kako daleč ste z implementacijo prišli. 
-
-Prav tako navedite, če katero od obveznih storitev niste implementirali v celoti.
+Delno je implementiran tudi strežniški del za nakupovanje preko vmesnika mobilne aplikacije (košarica, računi...).
 
 
 % -----------------------------------------------
@@ -160,32 +155,33 @@ Prav tako navedite, če katero od obveznih storitev niste implementirali v celot
     \label{fig:spletna_trgovina_db}
 \end{figure}
 
-Na \ref{fig:spletna_trgovina_db} je prikazana shema uporabljene podatkovne baze. Baza podpira dodeljevanje več vlog uporabnikom, prav tako lahko za posamezen produkt dodamo več cen, upošteva se vedno zadnja veljavna. To lahko koristimo v primeru, da se cena izdelka spremeni in preteklim nakupom ne smemo popravljati zneskov. Baza je načeloma v 3. normalni obliki, z izjemo uporabnikovega atributa naslov, kjer za potrebe naše trgovine ločevanje atributa na nove povezane tabele (naslov, kraj, država minimalno) ne predstavlja večjega smisla. Denormalizacija je izvedena tudi na tabeli 'postavka' in 'racun', kjer bazni prožilci sproti popravljajo ceno/znesek, podobno je pri produktu - povprečna ocena se popravlja z baznimi prožilci. 
+Na sliki \ref{fig:spletna_trgovina_db} je prikazana shema uporabljene podatkovne baze. Baza podpira dodeljevanje več vlog uporabnikom, prav tako lahko za posamezen produkt dodamo več cen, upošteva se vedno zadnja veljavna. To lahko koristimo v primeru, da se cena izdelka spremeni, preteklim nakupom pa ne smemo popravljati zneskov, sicer pride do nekonsistence glavne knjige. Baza je načeloma v 3. normalni obliki, z izjemo uporabnikovega atributa naslov, kjer za potrebe naše trgovine ločevanje atributa na nove povezane tabele (naslov, kraj, država) ne predstavlja večjega smisla. Denormalizacija je izvedena tudi na tabeli 'postavka' in 'racun', kjer bazni prožilci sproti popravljajo ceno/znesek, podobno je pri produktu - povprečna ocena se popravlja z baznimi prožilci. 
 Relacija 'dnevnik' v atributu 'opis' hrani podatke o zahtevah prodajalcev in administratorja, tip pa predstavlja tip zahtevka HTTP. 'Vloga' služi le kot šifrant za različne tipe vlog: 'administrator', 'prodajalec', 'stranka'.
 
-Podajte sliko logičnega podatkovnega modela (denimo iz programa MySQL Workbench) ter navedite in kratko opišite uporabljene tabele. Če katera vsebuje netrivialne atribute, jih pojasnite.
 
 % -----------------------------------------------
 \chapter{Varnost sistema}
 
-Za namene varnosti so strani /admin/* in /prodaja/* dostopne le z uporabo certifikata X.509, potrjenega s strani CA PMCA. PMCA je certifikatna agencija, pripravljana prav za potrebe te spletne aplikacije. Dodatno se pri dostopu /admin in vseh podstrani zahteva uporaba administratorskega certifikata (CN=Administrator). Dodatno se preverjanje uporabnika preverja na strani same aplikacije - poišče se ujemanje elektronskega naslova na podanem certifikatu in tistim, zapisanim v bazi. Od uporabnika se nato zahteva še sam vnos gesla, ki si ga lahko uporabnik po volji spremeni, prav tako je omogočeno urejanje ostalih atributov.
+Za namene varnosti so strani /admin/* in /prodaja/* dostopne le z uporabo certifikata X.509, potrjenega s strani CA PMCA. PMCA je certifikatna agencija, pripravljena prav za potrebe te spletne aplikacije. Dodatno se pri dostopu /admin in vseh podstrani zahteva uporaba administratorskega certifikata (CN=Administrator). Dodatno se preverjanje uporabnika preverja na strani same aplikacije - poišče se ujemanje elektronskega naslova na podanem certifikatu in tistim, zapisanim v bazi. Od uporabnika se nato zahteva še sam vnos gesla, ki si ga lahko uporabnik po volji spremeni, prav tako je omogočeno urejanje ostalih atributov.
 
 Spletni vmesnik za pregled izdelkov je dostopen preko HTTP in HTTPS protokola, dočim se za prijavo in registracijo izvede preusmerjanje na zavarovan kanal. Vse strani prijavljenega uporabnika so zaščitene s protokolom HTTPS, prav tako vse strani in podstrani /admin in /prodaja.
 
 Vsako preverjanje vnosov s strani uporabnikov je očiščeno html znakov (funkcija htmlspecialchars()), vsi parametri, ki se uporabljajo v poizvedbah SQL se obravnavajo kot parametri in ne kot ukazi (uporaba predpripravljenih poizvedb), kar naj bi preprečevalo vrivanje kode SQL (SQL Injection). S pomočjo ogrodja Laravel se uporablja tudi zaščita pred CRSF napadom.
 
-Vsi dostopi do različnih podstrani, ki zahtevajo prijavo so prav tako ščiteni z uporabo sejnih spremenljivk, ki v primeru nepooblaščenega dostopa izvedejo preusmeritev na stran za prijavo. Pri registraciji uporabnika je zahtevana uspešna rešitev CAPTCHE, katere odziv se preveri na strežniški strani. V kolikor je odziv ustrezen, se uporabnika doda v podatkovno bazo, nadalje pa se mu pošlje tudi potrditveno elektronsko sporočilo* z naključno generiranim nizom. S klikom na povezavo se preveri veljavnost niza in v primeru ujemanja uporabniku dovolimo prijavo v trgovino. Pošiljanje elektronskih sporočil je izvedeno preko storitve Mailgun, ki brezplačno omogoča pošiljanje sporočil samo osebam, ki so izrecno dovolile dostavo. Za potrebe demostracije, je v kodi trenutno nastavljen fiksen e-naslov, ki ima dostavo dovoljeno (primoz.hrovat.96@gmail.com). V praksi se ta storitev proti plačilu lahko uporablja nemoteno. Varovanje registracije novih uporabnikov varuje pred zlonamernimi programi - pajki, ki avtomatsko izpolnjujejo nezaščitene spletne obrazce. S CAPTCHO jim delo vsaj otežimo, s potrditvenim sporočilom pa registracijo sicer izvedemo, vendar nepotrjene uporabnike po določenem času pač iz baze izbrišemo.
+Vsi dostopi do različnih podstrani, ki zahtevajo prijavo so prav tako ščiteni z uporabo sejnih spremenljivk, ki v primeru nepooblaščenega dostopa izvedejo preusmeritev na stran za prijavo. Pri registraciji uporabnika je zahtevana uspešna rešitev CAPTCHE, katere odziv se preveri na strežniški strani. V kolikor je odziv ustrezen, se uporabnika doda v podatkovno bazo, nadalje pa se mu pošlje potrditveno elektronsko sporočilo z naključno generiranim nizom. S klikom na povezavo se preveri veljavnost niza in v primeru ujemanja uporabniku dovolimo prijavo v trgovino. Pošiljanje elektronskih sporočil je izvedeno preko storitve Mailgun, ki brezplačno omogoča pošiljanje sporočil samo osebam, ki so izrecno dovolile dostavo. Za potrebe demostracije, je v kodi trenutno nastavljen fiksen e-naslov, ki ima dostavo dovoljeno (primoz.hrovat.96@gmail.com). V praksi se ta storitev proti plačilu lahko uporablja nemoteno. Varovanje registracije novih uporabnikov varuje pred zlonamernimi programi - pajki, ki avtomatsko izpolnjujejo nezaščitene spletne obrazce. S CAPTCHO jim delo vsaj otežimo, s potrditvenim sporočilom pa registracijo sicer izvedemo, vendar nepotrjene uporabnike po določenem času pač iz baze izbrišemo.
 
 Za konsistentnost podatkovne baze skrbijo bazni prožilci ter omejitve tujih ključev.
 
-Opišite implementirane mehanizme za nadzor dostopa ter ostale kontrole, ki ste jih implementirali. Pri vsake navedite, kaj je njen namen oz. katere varnostne grožnje preprečuje.
+V Android aplikacijo se lahko prijavi le prej registriran uporabnik, ki za prijavo potrebuje e-mail in geslo. V kolikor se skuša prijaviti z napačnim geslom ali napačnim e-mailom ga aplikacija na to opozori, ko pritisne gumb "Prijava". Ko uporabnik vnese veljaven e-mail in geslo, se pošlje zahtevo na strežnik, ki vrne objekt, če je bila prijava uspešna, sicer vrne "null". Vrnjen objekt se shrani v "ApplicationObject", kateri se preverja na vsaki strani aplikacije. V kolikor se uporabnik odjavi iz aplikacije, se njegov objekt nastavi na "null". 
+
+Ob prijavi se uporabniku dodeli seja, ki jo mobilna aplikacija shrani in jo z vsakim naslednjim zahtevkom pošilja strežniku, s čimer se preveri, ali je uporabnik že bil overjen ali ne.
 
 % -----------------------------------------------
 \chapter{Izjava o avtorstvu seminarske naloge}
 
 Spodaj podpisani \textit{\prviavtor}, vpisna številka \textit{\prviindeks}, sem (so)avtor seminarske naloge z naslovom \textit{\naslov}. S svojim podpisom zagotavljam, da sem izdelal ali bil soudeležen pri izdelavi naslednjih sklopov seminarske naloge:
 \begin{itemize}
-    \item Načrtovanje in izvedba podatkovne baze
+    \item načrtovanje in izvedba podatkovne baze
     \item izvedba strežniškega in odjemalskega dela spletne aplikacije za stranko
     \item izvedba strežniškega in odjemalskega dela spletne aplikacije za prodajalca
     \item izvedba strežniškega in odjemalskega dela spletne aplikacije za administratorja
@@ -198,7 +194,7 @@ Podpis: {\prviavtor}, l.r.
 
 Spodaj podpisana \textit{\drugiavtor}, vpisna številka \textit{\drugiindeks}, sem (so)avtor seminarske naloge z naslovom \textit{\naslov}. S svojim podpisom zagotavljam, da sem izdelal ali bil soudeležen pri izdelavi naslednjih sklopov seminarske naloge:
 \begin{itemize}
-    \item Načrtovanje podatkovne baze
+    \item načrtovanje podatkovne baze
 	 \item izvedba strežniškega in odjemalskega dela spletne aplikacije za stranko
 	 \item izvedba odjemalskega dela spletne aplikacije za prodajalca
 	 \item izvedba odjemalskega dela spletne aplikacije za administratorja
@@ -208,7 +204,6 @@ Spodaj podpisana \textit{\drugiavtor}, vpisna številka \textit{\drugiindeks}, s
 Podpis: {\drugiavtor}, l.r.
 
 \newpage
-
 
 % -----------------------------------------------
 \chapter{Zaslonske slike - spletna aplikacija}
@@ -240,7 +235,38 @@ Podpis: {\drugiavtor}, l.r.
     \caption{Nadzorna plošča izdelkov - prodaja}
     \label{fig:products_prodajalec}
 \end{figure}
+%------------------------------------------------------------------------------
+\chapter{Zaslonske slike - Android aplikacija}
 
+\begin{figure}[h]
+\minipage{0.47\textwidth}
+    \centering
+  \includegraphics[scale=0.5]{slike/android/MainActivity.png}
+    \caption{Pregled artiklov}
+    \label{fig:main_activity}
+\endminipage\hfill
+\minipage{0.47\textwidth}
+    \centering
+  \includegraphics[scale=0.5]{slike/android/LoginActivity.png}
+    \caption{Prijavno okno}
+    \label{fig:login_activity}
+\endminipage\hfill
+\end{figure}
+
+\begin{figure}[h]
+\minipage{0.47\textwidth}
+    \centering
+  \includegraphics[scale=0.5]{slike/android/UserDataActivity.png}
+    \caption{Podatki uporabnika}
+    \label{fig:user_detail_activity}
+\endminipage\hfill
+\minipage{0.47\textwidth}
+    \centering
+  \includegraphics[scale=0.5]{slike/android/ProductDetailActivity.png}
+    \caption{Podrobnosti artikla}
+    \label{fig:product_detail_activity}
+\endminipage\hfill
+\end{figure}
 
 
 % -----------------------------------------------------------------------------
@@ -249,7 +275,7 @@ Podpis: {\drugiavtor}, l.r.
 % #######################
 \chapter{Zaključek}
 
-Pri izdelavi seminarske naloge sva naletela na kar precej izzivov, ki sva jih bolj ali manj uspešno tudi rešila. Poseben izziv nama je predstavljalo samo učenje ogrodja Laravel in implementacija mobilnega odjemalca za Android. Laravel sam po sebi kot ogrodje omogoča ogromno nastavitev in opcij, ki se jih je potrebno zavedati in se sprva težko znajdeš že v osnovnem projektu. Pri spoznavanju okolja zelo pomaga obširna uradna dokumentacija, dostopna preko spleta \cite{bib:laravel}. Operacijski sistem Android je še toliko obsežnejši, kar predstavlja dodaten izziv, v pomoč pa je razvijalsko ogrodje Android Studio in pa uradna dokumentacija, prav tako dostopna prek spleta.
+Pri izdelavi seminarske naloge sva naletela na kar precej izzivov, ki sva jih bolj ali manj uspešno tudi rešila. Poseben izziv nama je predstavljalo samo učenje ogrodja Laravel in implementacija mobilnega odjemalca za Android. Laravel sam po sebi kot ogrodje omogoča ogromno nastavitev in opcij, ki se jih je potrebno zavedati in se sprva težko znajdeš že v osnovnem projektu. Pri spoznavanju okolja zelo pomaga obširna uradna dokumentacija, dostopna preko spleta \cite{bib:laravel}. Operacijski sistem Android je še toliko obsežnejši, kar predstavlja dodaten izziv, v pomoč pa je razvijalsko ogrodje Android Studio in pa uradna dokumentacija \cite{bib:android}, prav tako dostopna prek spleta.
 
 Pri izdelavi seminarske naloge sva predvsem začutila utrip razvijalskega življenja in na lastni koži občutila, s kakšnimi problemi se srečujemo v vsakdanjiku neke razvojne ekipe. Od naloge sva odnesla veliko novega in uporabnega znanja, ki nama bo koristilo na nadaljni karierni poti.
 
@@ -262,16 +288,10 @@ Pri izdelavi seminarske naloge sva predvsem začutila utrip razvijalskega življ
 \addcontentsline{toc}{chapter}{\protect\numberline{\thechapter}Literatura}
 \addtocontents{toc}{\protect\vspace{15pt}}
 
-\bibitem{bib:laravel} https://laravel.com 
+\bibitem{bib:laravel} \emph{Laravel} \url{https://laravel.com} 
 
-\bibitem{bib:ref1} Michele D.; Jon P. \emph{Learning PHP and MySQL}. O'Rielly, 2006. ISBN-10: 0-596-10110-4.
+\bibitem{bib:android} \emph{Android Developers} \url{https://developer.android.com/index.html}
 
-\bibitem{bib:ref2} Tim C.; Joyce P.; Clark M. \emph{PHP5 and MySQL Bible}. Wiley Publishing, Inc., 2004. ISBN-10: 0-7645-5746-7
-
-\bibitem{bib:LinuxCommandReference} Red Hat Software inc. \emph{Linux Complete Command Reference}. Sams Publishing, 1997. ISBN-10: 0-672-31104-6.
-
-\bibitem{bib:IPsecHowTo1} Ralf Spennberg. \emph{IPsec HOWTO} (online). 2003. (citirano \today). Dostopno na naslovu:
-\url{http://www.ipsec-howto.org/t1.html}
 
 \end{thebibliography}
 
